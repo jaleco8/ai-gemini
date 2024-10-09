@@ -1,39 +1,48 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Router } from '@angular/router';
-import { Observable, tap } from 'rxjs';
+import { Auth, createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut } from '@angular/fire/auth';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
-  private apiUrl = 'http://tu-backend.com/api';
   private tokenKey = 'authToken';
 
-  constructor(
-    private http: HttpClient,
-    private router: Router,
-  ) {}
+  constructor(private auth: Auth) {}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  login(credentials: { email: string; password: string }): Observable<any> {
-    return this.http.post(`${this.apiUrl}/login`, credentials).pipe(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      tap((response: any) => {
-        localStorage.setItem(this.tokenKey, response.token);
-      }),
-    );
+  async register(email: string, password: string, displayName: string): Promise<void> {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
+      await updateProfile(userCredential.user, {
+        displayName: displayName,
+      });
+      localStorage.setItem(this.tokenKey, await userCredential.user.getIdToken());
+    } catch (error) {
+      console.error('Error creating user:', error);
+    }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  register(user: { email: string; password: string }): Observable<any> {
-    return this.http.post(`${this.apiUrl}/register`, user);
+  async login(email: string, password: string): Promise<void> {
+    try {
+      const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
+      localStorage.setItem(this.tokenKey, await userCredential.user.getIdToken());
+    } catch (error) {
+      console.error('Error signing in:', error);
+    }
   }
 
-  logout(): void {
-    localStorage.removeItem(this.tokenKey);
-    this.router.navigate(['/login']);
+  async logout(): Promise<void> {
+    try {
+      localStorage.removeItem(this.tokenKey);
+      await signOut(this.auth);
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
   }
+
+  /* loginWithGoogle() {
+    return signInWithPopup(this.auth, new GoogleAuthProvider());
+  }
+  */
 
   getToken(): string | null {
     return localStorage.getItem(this.tokenKey);
